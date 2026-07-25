@@ -48,7 +48,7 @@
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col">
 
-    <!-- Hidden Iframe to handle Google Apps Script POST form submission without page reload / CORS block -->
+    <!-- Hidden Iframe to handle Google Apps Script POST form submission cleanly -->
     <iframe name="hidden_gscript_iframe" id="hidden_gscript_iframe" style="display:none;" onload="if(window.isSubmittingForm){ handleFormSuccess(); }"></iframe>
 
     <!-- Header Banner -->
@@ -58,7 +58,7 @@
                 <div class="flex items-center space-x-4">
                     <!-- Company Logo Image with Icon Fallback -->
                     <div class="bg-white p-1.5 rounded-xl shadow-lg flex items-center justify-center min-w-[56px] h-14 overflow-hidden border border-slate-700">
-                        <img src="logo.png" alt="Company Logo" class="max-h-12 w-auto object-contain" onerror="this.onerror=null; this.parentNode.innerHTML='<div class='p-3 bg-amber-500 text-slate-900 font-black text-2xl rounded-lg'><i class='fa-solid fa-truck-monster'></i></div>';">
+                        <img src="logo.png" alt="Company Logo" class="max-h-12 w-auto object-contain" onerror="this.onerror=null; this.parentNode.innerHTML='<div class=\'p-3 bg-amber-500 text-slate-900 font-black text-2xl rounded-lg\'><i class=\'fa-solid fa-truck-monster\'></i></div>';">
                     </div>
                     <div>
                         <div class="flex items-center space-x-2">
@@ -75,11 +75,11 @@
 
                 <!-- Navigation Tabs -->
                 <div class="no-print flex items-center bg-slate-800 p-1.5 rounded-xl border border-slate-700">
-                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                    <button type="button" onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all">
                         <i class="fa-solid fa-chart-pie"></i>
                         <span>Dashboard</span>
                     </button>
-                    <button onclick="switchTab('entry')" id="tab-entry" class="tab-btn flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
+                    <button type="button" onclick="switchTab('entry')" id="tab-entry" class="tab-btn flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
                         <i class="fa-solid fa-pen-to-square"></i>
                         <span>Daily Entry Form</span>
                     </button>
@@ -107,11 +107,11 @@
                 </div>
 
                 <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
-                    <button onclick="refreshData()" class="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition flex items-center justify-center space-x-2 border border-slate-300">
+                    <button type="button" onclick="refreshData()" class="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition flex items-center justify-center space-x-2 border border-slate-300">
                         <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i>
                         <span>Refresh Data</span>
                     </button>
-                    <button onclick="window.print()" class="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
+                    <button type="button" onclick="window.print()" class="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
                         <i class="fa-solid fa-print"></i>
                         <span>Print / PDF Report</span>
                     </button>
@@ -235,10 +235,8 @@
 
         <!-- DAILY ENTRY FORM VIEW -->
         <div id="view-entry" class="hidden space-y-6">
-            <!-- Native Form submit targeting hidden iframe to completely bypass browser CORS block -->
-            <form id="entry-form" action="https://script.google.com/macros/s/AKfycbyB2nC-PhSorlK_72Ozwzw1Xapqi0ukt5OXPj1KB4IgBydotc6UBXi2-5YPK8lAVjqOtA/exec" method="POST" target="hidden_gscript_iframe" onsubmit="prepareAndSubmitForm(event)" class="space-y-6">
+            <form id="entry-form" action="https://script.google.com/macros/s/AKfycbyr83v7QKk3-Ua0P-h0hJ_llp9a_ISVRjKlPt7GOrZ8M3Q2kSd6PZKyOPi4kiJcm0JHXA/exec" method="POST" target="hidden_gscript_iframe" onsubmit="prepareAndSubmitForm(event)" class="space-y-6">
                 
-                <!-- Hidden input field to hold full payload string -->
                 <input type="hidden" name="payload" id="hidden-form-payload">
 
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -268,7 +266,7 @@
                                 </tr>
                             </thead>
                             <tbody id="entry-table-body" class="divide-y divide-slate-200 font-medium">
-                                <!-- Populated dynamically with Fixed Vehicles & Fixed Totals -->
+                                <!-- Populated dynamically -->
                             </tbody>
                         </table>
                     </div>
@@ -322,14 +320,11 @@
             { type: "Bin Washing Vehicle", total: 2 }
         ];
 
-        const FIXED_GRAND_TOTAL_VEHICLES = FIXED_FLEET_MASTER.reduce((acc, curr) => acc + curr.total, 0);
+        const FIXED_GRAND_TOTAL_VEHICLES = 287;
 
         const SAMPLE_IMAGE_DATA = {
             date: "2026-07-21",
-            generalNotes: "* Vehicle Sent to Dealer: GA0040, GA2017, GA0038
-* Note: 11 HOOK Loader's Suspension work Pending (GA-6246, 6210, 6212, 6221, 6218, 6216, 6208, 6206, 6202, 6198, 6204)
-* V0344 - this vehicle sent to Pune
-* Rented Vehicle Breakdown: FU9411",
+            generalNotes: "* Vehicle Sent to Dealer: GA0040, GA2017, GA0038\n* Note: 11 HOOK Loader's Suspension work Pending (GA-6246, 6210, 6212, 6221, 6218, 6216, 6208, 6206, 6202, 6198, 6204)\n* V0344 - this vehicle sent to Pune\n* Rented Vehicle Breakdown: FU9411",
             vehicles: [
                 { type: "PC Tipper", total: 166, repair: 14, reg: 0, ready: 152, remarks: "GA0040, GA2017, GA0038 sent to dealer" },
                 { type: "HOOK Loaders", total: 31, repair: 2, reg: 0, ready: 29, remarks: "11 Hook Loaders suspension work pending" },
@@ -350,12 +345,12 @@
         window.submittedDate = "";
 
         document.addEventListener('DOMContentLoaded', () => {
-            const defaultDate = "2026-07-21";
+            const defaultDate = new Date().toISOString().split('T')[0];
             document.getElementById('dash-date-picker').value = defaultDate;
             document.getElementById('entry-date').value = defaultDate;
 
-            if (!localStorage.getItem('fleet_data_' + defaultDate)) {
-                localStorage.setItem('fleet_data_' + defaultDate, JSON.stringify(SAMPLE_IMAGE_DATA));
+            if (!localStorage.getItem('fleet_data_2026-07-21')) {
+                localStorage.setItem('fleet_data_2026-07-21', JSON.stringify(SAMPLE_IMAGE_DATA));
             }
 
             buildEntryFormRows();
@@ -378,6 +373,7 @@
 
         function buildEntryFormRows() {
             const tbody = document.getElementById('entry-table-body');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             FIXED_FLEET_MASTER.forEach((item, idx) => {
@@ -512,6 +508,7 @@
 
         function renderDashboard(data, selectedDate) {
             const tbody = document.getElementById('dashboard-table-body');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             let currentVehicles = FIXED_FLEET_MASTER.map(item => ({
@@ -523,7 +520,7 @@
                 remarks: ""
             }));
 
-            let generalNotes = "No records entered for this date.";
+            let generalNotes = "या तारखेची कोणतीही नोंद नाही.";
 
             if (data && data.vehicles) {
                 currentVehicles = FIXED_FLEET_MASTER.map(masterItem => {
@@ -592,7 +589,9 @@
         }
 
         function renderChart(vehicles) {
-            const ctx = document.getElementById('vehicleChart').getContext('2d');
+            const canvasEl = document.getElementById('vehicleChart');
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
             if (chartInstance) {
                 chartInstance.destroy();
             }
@@ -632,9 +631,9 @@
 
         function refreshData() {
             const icon = document.getElementById('refresh-icon');
-            icon.classList.add('fa-spin');
+            if (icon) icon.classList.add('fa-spin');
             loadDashboardData();
-            setTimeout(() => icon.classList.remove('fa-spin'), 600);
+            setTimeout(() => { if (icon) icon.classList.remove('fa-spin'); }, 600);
         }
 
         function formatDisplayDate(dateStr) {
