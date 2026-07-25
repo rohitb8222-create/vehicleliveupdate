@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUMMET ELKO VEHICLE STATUS LIVE</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .pulse-live {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse 1.6s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .tab-btn.active {
+            background-color: #1e293b;
+            color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-full { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            body { background-color: white !important; }
+            .shadow-lg, .shadow-md, .shadow-sm { box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header Banner -->
+    <header class="bg-slate-900 text-white shadow-xl border-b-4 border-amber-500 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="p-3 bg-amber-500 rounded-xl text-slate-900 font-black text-2xl shadow-lg">
+                        <i class="fa-solid fa-truck-monster"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+                                SUMMET ELKO VEHICLE STATUS
+                            </h1>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                <span class="pulse-live mr-1.5"></span> LIVE
+                            </span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-400 font-medium">Daily Operations & Fleet Management System</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="no-print flex items-center bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('entry')" id="tab-entry" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Daily Entry Form</span>
+                    </button>
+                    <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Google Sheet Link</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="space-y-6">
+            
+            <!-- Controls & Date Selector Bar -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                    <div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+                        <i class="fa-regular fa-calendar-check text-xl"></i>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">तारीख निवडा (Select Date)</label>
+                        <input type="date" id="dash-date-picker" class="mt-0.5 bg-slate-50 border border-slate-300 text-slate-900 font-bold text-base rounded-lg focus:ring-2 focus:ring-blue-500 block w-full p-2" onchange="loadDashboardData()">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+                    <button onclick="refreshData()" class="flex-1 sm:flex-none px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition flex items-center justify-center space-x-2 border border-slate-300">
+                        <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i>
+                        <span>Refresh Data</span>
+                    </button>
+                    <button onclick="window.print()" class="flex-1 sm:flex-none px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition flex items-center justify-center space-x-2 shadow-md hover:shadow-lg">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Print / PDF Report</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Date Display Banner -->
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-xl flex justify-between items-center shadow-md">
+                <div>
+                    <h2 class="text-xs uppercase font-bold text-amber-400 tracking-wider">Summet Elko Operational Fleet Status</h2>
+                    <p class="text-lg font-extrabold" id="dashboard-date-heading">Summary as on date: --</p>
+                </div>
+                <div id="sync-status-badge" class="px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold rounded-full flex items-center space-x-1.5">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span id="sync-text">Live Synced</span>
+                </div>
+            </div>
+
+            <!-- Metric Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Vehicles</span>
+                        <div class="p-2 bg-slate-100 text-slate-600 rounded-lg"><i class="fa-solid fa-truck"></i></div>
+                    </div>
+                    <p class="text-2xl sm:text-3xl font-black text-slate-900 mt-2" id="card-total-vehicles">287</p>
+                    <span class="text-xs text-slate-500 mt-1 block">Fixed Fleet Capacity</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-emerald-200 bg-emerald-50/30 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Ready To Use</span>
+                        <div class="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><i class="fa-solid fa-circle-check"></i></div>
+                    </div>
+                    <p class="text-2xl sm:text-3xl font-black text-emerald-700 mt-2" id="card-ready-vehicles">0</p>
+                    <span class="text-xs text-emerald-600 font-medium mt-1 block" id="card-ready-percent">0% Operational</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200 bg-amber-50/30 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Under Repair</span>
+                        <div class="p-2 bg-amber-100 text-amber-600 rounded-lg"><i class="fa-solid fa-wrench"></i></div>
+                    </div>
+                    <p class="text-2xl sm:text-3xl font-black text-amber-700 mt-2" id="card-repair-vehicles">0</p>
+                    <span class="text-xs text-amber-600 font-medium mt-1 block">In Maintenance</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-sky-200 bg-sky-50/30 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-sky-700 uppercase tracking-wider">Under Reg.</span>
+                        <div class="p-2 bg-sky-100 text-sky-600 rounded-lg"><i class="fa-solid fa-id-card"></i></div>
+                    </div>
+                    <p class="text-2xl sm:text-3xl font-black text-sky-700 mt-2" id="card-reg-vehicles">0</p>
+                    <span class="text-xs text-sky-600 font-medium mt-1 block">RTO Pending</span>
+                </div>
+            </div>
+
+            <!-- Table Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print-full">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-list-check text-amber-500"></i>
+                        <span>Vehicle Breakdown Summary Table</span>
+                    </h3>
+                    <span class="text-xs font-medium text-slate-500"><i class="fa-solid fa-lock text-slate-400 mr-1"></i> Fixed Vehicle & Total Fleet</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-900 text-white font-semibold text-xs tracking-wider uppercase border-b border-slate-800">
+                                <th class="p-3 sm:p-4 text-center w-16">Sr. No</th>
+                                <th class="p-3 sm:p-4">Type of Vehicle</th>
+                                <th class="p-3 sm:p-4 text-center bg-slate-800">Total Vehicle (Fixed)</th>
+                                <th class="p-3 sm:p-4 text-center text-amber-300">Under Repair</th>
+                                <th class="p-3 sm:p-4 text-center text-sky-300">Under Reg.</th>
+                                <th class="p-3 sm:p-4 text-center text-emerald-300">Ready To Use</th>
+                                <th class="p-3 sm:p-4">Remarks / Vehicle Sent To Dealer / Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-table-body" class="divide-y divide-slate-100 font-medium text-slate-700">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-slate-100 font-black text-slate-900 text-base border-t-2 border-slate-900">
+                                <td colspan="2" class="p-4 text-right tracking-wide uppercase">Grand Total:</td>
+                                <td class="p-4 text-center text-blue-700 bg-slate-200/60" id="total-sum">287</td>
+                                <td class="p-4 text-center text-amber-700" id="repair-sum">0</td>
+                                <td class="p-4 text-center text-sky-700" id="reg-sum">0</td>
+                                <td class="p-4 text-center text-emerald-700" id="ready-sum">0</td>
+                                <td class="p-4 text-xs font-normal text-slate-500">Fixed Capacity: 287 Vehicles</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="bg-amber-50/60 border border-amber-200 rounded-2xl p-5 shadow-sm">
+                <h4 class="text-amber-900 font-bold text-sm uppercase tracking-wider flex items-center space-x-2 mb-2">
+                    <i class="fa-solid fa-clipboard-list text-amber-600"></i>
+                    <span>Important Remarks & Operations Notes</span>
+                </h4>
+                <div id="dashboard-general-notes" class="text-slate-800 text-sm whitespace-pre-wrap font-medium pl-6 list-disc">
+                    No special notes recorded for this date.
+                </div>
+            </div>
+
+            <!-- Analytics Chart -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 no-print">
+                <h3 class="font-bold text-slate-800 text-base mb-4 flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-column text-blue-600"></i>
+                    <span>Vehicle Availability vs Repair Comparison</span>
+                </h3>
+                <div class="h-64 sm:h-80 w-full">
+                    <canvas id="vehicleChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- DAILY ENTRY FORM VIEW -->
+        <div id="view-entry" class="hidden space-y-6">
+            <form id="entry-form" onsubmit="handleFormSubmit(event)" class="space-y-6">
+                
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">Daily Fleet Data Entry Form</h2>
+                        <p class="text-xs text-slate-500">फक्त Under Repair, Under Reg. आणि Remarks भरा. Ready To Use आपोआप कॅल्क्युलेट होईल.</p>
+                    </div>
+                    <div class="flex items-center space-x-3 w-full md:w-auto">
+                        <label class="text-sm font-bold text-slate-700">तारीख (Entry Date):</label>
+                        <input type="date" id="entry-date" required class="bg-slate-50 border border-slate-300 font-bold text-slate-800 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Input Table Container -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-900 text-white font-semibold text-xs tracking-wider uppercase">
+                                    <th class="p-3 w-12 text-center">#</th>
+                                    <th class="p-3 min-w-[180px]">Type of Vehicle (Fixed)</th>
+                                    <th class="p-3 text-center w-32 bg-slate-800 text-slate-300">Total Vehicle (Fixed)</th>
+                                    <th class="p-3 text-center w-28 text-amber-300">Under Repair</th>
+                                    <th class="p-3 text-center w-28 text-sky-300">Under Reg.</th>
+                                    <th class="p-3 text-center w-28 text-emerald-300">Ready To Use (Auto)</th>
+                                    <th class="p-3 min-w-[220px]">Vehicle Sent to Dealer / Specific Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="entry-table-body" class="divide-y divide-slate-200 font-medium">
+                                <!-- Populated dynamically with Fixed Vehicles & Fixed Totals -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- General Operational Notes Input -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+                    <label class="block font-bold text-slate-800 text-sm flex items-center space-x-2">
+                        <i class="fa-solid fa-note-sticky text-amber-500"></i>
+                        <span>एकूण टिप्पणी / महत्त्वाच्या नोंदी (General Summary Notes):</span>
+                    </label>
+                    <textarea id="entry-general-notes" rows="3" placeholder="उदा. GA0040, GA2017 sent to dealer, 11 Hook Loaders suspension work pending..." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Submit Action Bar -->
+                <div class="flex items-center justify-end space-x-4">
+                    <button type="button" onclick="loadSampleDataIntoForm()" class="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition border border-slate-300">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2 text-purple-600"></i> 21-07-2026 Sample Data भरा
+                    </button>
+                    <button type="submit" id="submit-btn" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl transition shadow-lg hover:shadow-emerald-600/30 flex items-center space-x-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span id="submit-btn-text">Google Sheet मध्ये Entry सेव्ह करा</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- SETTINGS & GOOGLE SHEETS API CONFIG -->
+        <div id="view-settings" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                <div>
+                    <h2 class="text-xl font-extrabold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-link text-blue-600"></i>
+                        <span>Connected Google Apps Script Web App Link</span>
+                    </h2>
+                    <p class="text-sm text-slate-600 mt-1">
+                        तुमची Google Apps Script Web App URL यशस्वीपणे हार्डकोड/कनेक्ट केली आहे.
+                    </p>
+                </div>
+
+                <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Active Web App URL</label>
+                    <div class="flex gap-2">
+                        <input type="url" id="script-url-input" class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+                        <button onclick="saveScriptUrl()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition shadow-md">
+                            Update Link
+                        </button>
+                    </div>
+                    <p class="text-xs text-emerald-600 font-semibold flex items-center mt-1"><i class="fa-solid fa-circle-check mr-1"></i> ही लिंक आधीच सिस्टीममध्ये समाविष्ट आहे.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-4 border-t border-slate-800 text-center text-xs no-print">
+        <p>SUMMET ELKO VEHICLE STATUS LIVE System &bull; Designed for Fixed Fleet Operations & Tracking</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // HARDCODED GOOGLE APPS SCRIPT WEB APP URL
+        const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyB2nC-PhSorlK_72Ozwzw1Xapqi0ukt5OXPj1KB4IgBydotc6UBXi2-5YPK8lAVjqOtA/exec";
+
+        // MASTER FIXED VEHICLE MASTER LIST & FIXED TOTAL CAPACITY
+        const FIXED_FLEET_MASTER = [
+            { type: "PC Tipper", total: 166 },
+            { type: "HOOK Loaders", total: 31 },
+            { type: "Mechanical Road Sweeper", total: 4 },
+            { type: "Refuse Compactor", total: 4 },
+            { type: "HMV Tipper", total: 3 },
+            { type: "BOV", total: 66 },
+            { type: "Backhoe Loaders", total: 2 },
+            { type: "Skid Steer Loader", total: 2 },
+            { type: "ISUZU", total: 2 },
+            { type: "Mini Tipper", total: 5 },
+            { type: "Bin Washing Vehicle", total: 2 }
+        ];
+
+        const FIXED_GRAND_TOTAL_VEHICLES = FIXED_FLEET_MASTER.reduce((acc, curr) => acc + curr.total, 0); // 287
+
+        // Sample Default Data from image for 2026-07-21
+        const SAMPLE_IMAGE_DATA = {
+            date: "2026-07-21",
+            generalNotes: "* Vehicle Sent to Dealer: GA0040, GA2017, GA0038\n* Note: 11 HOOK Loader's Suspension work Pending (GA-6246, 6210, 6212, 6221, 6218, 6216, 6208, 6206, 6202, 6198, 6204)\n* V0344 - this vehicle sent to Pune\n* Rented Vehicle Breakdown: FU9411",
+            vehicles: [
+                { type: "PC Tipper", total: 166, repair: 14, reg: 0, ready: 152, remarks: "GA0040, GA2017, GA0038 sent to dealer" },
+                { type: "HOOK Loaders", total: 31, repair: 2, reg: 0, ready: 29, remarks: "11 Hook Loaders suspension work pending" },
+                { type: "Mechanical Road Sweeper", total: 4, repair: 2, reg: 0, ready: 2, remarks: "" },
+                { type: "Refuse Compactor", total: 4, repair: 1, reg: 0, ready: 3, remarks: "" },
+                { type: "HMV Tipper", total: 3, repair: 0, reg: 0, ready: 3, remarks: "" },
+                { type: "BOV", total: 66, repair: 33, reg: 0, ready: 33, remarks: "" },
+                { type: "Backhoe Loaders", total: 2, repair: 0, reg: 0, ready: 2, remarks: "" },
+                { type: "Skid Steer Loader", total: 2, repair: 0, reg: 0, ready: 2, remarks: "" },
+                { type: "ISUZU", total: 2, repair: 0, reg: 0, ready: 2, remarks: "" },
+                { type: "Mini Tipper", total: 5, repair: 0, reg: 0, ready: 5, remarks: "" },
+                { type: "Bin Washing Vehicle", total: 2, repair: 0, reg: 0, ready: 2, remarks: "" }
+            ]
+        };
+
+        let chartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const defaultDate = "2026-07-21";
+            document.getElementById('dash-date-picker').value = defaultDate;
+            document.getElementById('entry-date').value = defaultDate;
+
+            const savedUrl = localStorage.getItem('google_script_url') || DEFAULT_SCRIPT_URL;
+            document.getElementById('script-url-input').value = savedUrl;
+
+            if (!localStorage.getItem('fleet_data_' + defaultDate)) {
+                localStorage.setItem('fleet_data_' + defaultDate, JSON.stringify(SAMPLE_IMAGE_DATA));
+            }
+
+            buildEntryFormRows();
+            loadDashboardData();
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-entry').classList.add('hidden');
+            document.getElementById('view-settings').classList.add('hidden');
+
+            document.getElementById('view-' + tabName).classList.remove('hidden');
+
+            if (tabName === 'dashboard') {
+                loadDashboardData();
+            }
+        }
+
+        function buildEntryFormRows() {
+            const tbody = document.getElementById('entry-table-body');
+            tbody.innerHTML = '';
+
+            FIXED_FLEET_MASTER.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
+                    <td class="p-3 font-bold text-slate-900">${item.type}</td>
+                    <td class="p-3 text-center font-extrabold text-blue-900 bg-slate-100/70 border-x border-slate-200">
+                        ${item.total}
+                        <input type="hidden" id="entry-total-${idx}" value="${item.total}">
+                    </td>
+                    <td class="p-3"><input type="number" min="0" max="${item.total}" value="0" id="entry-repair-${idx}" class="w-full bg-amber-50 border border-amber-300 rounded-lg p-2 text-center font-bold text-amber-800 focus:ring-2 focus:ring-amber-500" oninput="calculateReady(${idx})"></td>
+                    <td class="p-3"><input type="number" min="0" max="${item.total}" value="0" id="entry-reg-${idx}" class="w-full bg-sky-50 border border-sky-300 rounded-lg p-2 text-center font-bold text-sky-800 focus:ring-2 focus:ring-sky-500" oninput="calculateReady(${idx})"></td>
+                    <td class="p-3"><input type="number" min="0" value="${item.total}" id="entry-ready-${idx}" class="w-full bg-emerald-50 border border-emerald-300 rounded-lg p-2 text-center font-bold text-emerald-800" readonly></td>
+                    <td class="p-3"><input type="text" placeholder="उदा. GA0040 sent to dealer..." id="entry-remarks-${idx}" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500"></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function calculateReady(index) {
+            const fixedTotal = FIXED_FLEET_MASTER[index].total;
+            const repair = parseInt(document.getElementById(`entry-repair-${index}`).value) || 0;
+            const reg = parseInt(document.getElementById(`entry-reg-${index}`).value) || 0;
+
+            const ready = Math.max(0, fixedTotal - (repair + reg));
+            document.getElementById(`entry-ready-${index}`).value = ready;
+        }
+
+        function loadSampleDataIntoForm() {
+            document.getElementById('entry-date').value = SAMPLE_IMAGE_DATA.date;
+            document.getElementById('entry-general-notes').value = SAMPLE_IMAGE_DATA.generalNotes;
+
+            SAMPLE_IMAGE_DATA.vehicles.forEach((v, idx) => {
+                document.getElementById(`entry-repair-${idx}`).value = v.repair;
+                document.getElementById(`entry-reg-${idx}`).value = v.reg;
+                document.getElementById(`entry-ready-${idx}`).value = v.ready;
+                document.getElementById(`entry-remarks-${idx}`).value = v.remarks;
+            });
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submit-btn');
+            const submitBtnText = document.getElementById('submit-btn-text');
+
+            submitBtn.disabled = true;
+            submitBtnText.innerText = "सेव्ह होत आहे...";
+
+            const date = document.getElementById('entry-date').value;
+            const generalNotes = document.getElementById('entry-general-notes').value;
+
+            const vehicles = FIXED_FLEET_MASTER.map((item, idx) => {
+                const repair = parseInt(document.getElementById(`entry-repair-${idx}`).value) || 0;
+                const reg = parseInt(document.getElementById(`entry-reg-${idx}`).value) || 0;
+                const ready = Math.max(0, item.total - (repair + reg));
+                const remarks = document.getElementById(`entry-remarks-${idx}`).value || "";
+
+                return {
+                    type: item.type,
+                    total: item.total,
+                    repair: repair,
+                    reg: reg,
+                    ready: ready,
+                    remarks: remarks
+                };
+            });
+
+            const payload = { date, generalNotes, vehicles };
+
+            localStorage.setItem('fleet_data_' + date, JSON.stringify(payload));
+
+            const scriptUrl = localStorage.getItem('google_script_url') || DEFAULT_SCRIPT_URL;
+            if (scriptUrl) {
+                try {
+                    await fetch(scriptUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    alert("✅ Google Sheet मध्ये Entry सेव्ह झाली!");
+                } catch (err) {
+                    alert("⚠️ Local Storage मध्ये सेव्ह झाले, पण Google Sheet Sync अयशस्वी झाले.");
+                }
+            } else {
+                alert("✅ डेटा Local Storage मध्ये सेव्ह झाला!");
+            }
+
+            submitBtn.disabled = false;
+            submitBtnText.innerText = "Google Sheet मध्ये Entry सेव्ह करा";
+
+            document.getElementById('dash-date-picker').value = date;
+            switchTab('dashboard');
+        }
+
+        function saveScriptUrl() {
+            const url = document.getElementById('script-url-input').value.trim();
+            if (url) {
+                localStorage.setItem('google_script_url', url);
+                alert("✅ Google Script URL सेव्ह झाली!");
+            }
+        }
+
+        async function loadDashboardData() {
+            const selectedDate = document.getElementById('dash-date-picker').value;
+            document.getElementById('dashboard-date-heading').innerText = `Summary as on date: ${formatDisplayDate(selectedDate)}`;
+
+            let data = null;
+            const scriptUrl = localStorage.getItem('google_script_url') || DEFAULT_SCRIPT_URL;
+
+            if (scriptUrl) {
+                document.getElementById('sync-text').innerText = "Syncing...";
+                try {
+                    const res = await fetch(`${scriptUrl}?date=${selectedDate}`);
+                    const json = await res.json();
+                    if (json.status === 'success') {
+                        data = json.data;
+                        document.getElementById('sync-text').innerText = "Live Synced";
+                    }
+                } catch (e) {
+                    console.warn("Falling back to LocalStorage.");
+                }
+            }
+
+            if (!data) {
+                const localStr = localStorage.getItem('fleet_data_' + selectedDate);
+                if (localStr) {
+                    data = JSON.parse(localStr);
+                    document.getElementById('sync-text').innerText = "Local Cache";
+                } else if (selectedDate === "2026-07-21") {
+                    data = SAMPLE_IMAGE_DATA;
+                    document.getElementById('sync-text').innerText = "Sample Demo Data";
+                }
+            }
+
+            renderDashboard(data, selectedDate);
+        }
+
+        function renderDashboard(data, selectedDate) {
+            const tbody = document.getElementById('dashboard-table-body');
+            tbody.innerHTML = '';
+
+            let currentVehicles = FIXED_FLEET_MASTER.map(item => ({
+                type: item.type,
+                total: item.total,
+                repair: 0,
+                reg: 0,
+                ready: item.total,
+                remarks: ""
+            }));
+
+            let generalNotes = "No records entered for this date.";
+
+            if (data && data.vehicles) {
+                currentVehicles = FIXED_FLEET_MASTER.map(masterItem => {
+                    const found = data.vehicles.find(v => v.type === masterItem.type);
+                    if (found) {
+                        return {
+                            type: masterItem.type,
+                            total: masterItem.total,
+                            repair: found.repair || 0,
+                            reg: found.reg || 0,
+                            ready: Math.max(0, masterItem.total - ((found.repair || 0) + (found.reg || 0))),
+                            remarks: found.remarks || ""
+                        };
+                    } else {
+                        return {
+                            type: masterItem.type,
+                            total: masterItem.total,
+                            repair: 0,
+                            reg: 0,
+                            ready: masterItem.total,
+                            remarks: ""
+                        };
+                    }
+                });
+                generalNotes = data.generalNotes || "कोणतीही विशेष नोंद नाही.";
+            }
+
+            let sumTotal = FIXED_GRAND_TOTAL_VEHICLES;
+            let sumRepair = 0, sumReg = 0, sumReady = 0;
+
+            currentVehicles.forEach((v, idx) => {
+                sumRepair += v.repair;
+                sumReg += v.reg;
+                sumReady += v.ready;
+
+                const tr = document.createElement('tr');
+                tr.className = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60';
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
+                    <td class="p-3 font-bold text-slate-800">${v.type}</td>
+                    <td class="p-3 text-center font-extrabold text-blue-900 bg-slate-100/60 border-x border-slate-200">${v.total}</td>
+                    <td class="p-3 text-center font-extrabold ${v.repair > 0 ? 'text-amber-600 bg-amber-50/50' : 'text-slate-400'}">${v.repair > 0 ? v.repair : '0'}</td>
+                    <td class="p-3 text-center font-extrabold ${v.reg > 0 ? 'text-sky-600 bg-sky-50/50' : 'text-slate-400'}">${v.reg > 0 ? v.reg : 'NA'}</td>
+                    <td class="p-3 text-center font-extrabold ${v.ready > 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-400'}">${v.ready}</td>
+                    <td class="p-3 text-xs text-slate-600 font-medium">${v.remarks ? v.remarks : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('card-total-vehicles').innerText = sumTotal;
+            document.getElementById('card-ready-vehicles').innerText = sumReady;
+            document.getElementById('card-repair-vehicles').innerText = sumRepair;
+            document.getElementById('card-reg-vehicles').innerText = sumReg;
+
+            const availPercent = ((sumReady / sumTotal) * 100).toFixed(1);
+            document.getElementById('card-ready-percent').innerText = `${availPercent}% Operational Availability`;
+
+            document.getElementById('total-sum').innerText = sumTotal;
+            document.getElementById('repair-sum').innerText = sumRepair;
+            document.getElementById('reg-sum').innerText = sumReg;
+            document.getElementById('ready-sum').innerText = sumReady;
+
+            document.getElementById('dashboard-general-notes').innerText = generalNotes;
+
+            renderChart(currentVehicles);
+        }
+
+        function renderChart(vehicles) {
+            const ctx = document.getElementById('vehicleChart').getContext('2d');
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: vehicles.map(v => v.type),
+                    datasets: [
+                        {
+                            label: 'Ready To Use',
+                            data: vehicles.map(v => v.ready),
+                            backgroundColor: '#10b981',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Under Repair',
+                            data: vehicles.map(v => v.repair),
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { position: 'top' }
+                    }
+                }
+            });
+        }
+
+        function refreshData() {
+            const icon = document.getElementById('refresh-icon');
+            icon.classList.add('fa-spin');
+            loadDashboardData();
+            setTimeout(() => icon.classList.remove('fa-spin'), 600);
+        }
+
+        function formatDisplayDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+        }
+    </script>
+</body>
+</html>
