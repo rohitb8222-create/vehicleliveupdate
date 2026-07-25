@@ -52,9 +52,10 @@
     <header class="bg-slate-900 text-white shadow-xl border-b-4 border-amber-500 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div class="flex items-center space-x-3">
-                    <div class="p-3 bg-amber-500 rounded-xl text-slate-900 font-black text-2xl shadow-lg">
-                        <i class="fa-solid fa-truck-monster"></i>
+                <div class="flex items-center space-x-4">
+                    <!-- Company Logo Image with Icon Fallback -->
+                    <div class="bg-white p-1.5 rounded-xl shadow-lg flex items-center justify-center min-w-[56px] h-14 overflow-hidden border border-slate-700">
+                        <img src="logo.png" alt="Company Logo" class="max-h-12 w-auto object-contain" onerror="this.onerror=null; this.parentNode.innerHTML='<div class='p-3 bg-amber-500 text-slate-900 font-black text-2xl rounded-lg'><i class='fa-solid fa-truck-monster'></i></div>';">
                     </div>
                     <div>
                         <div class="flex items-center space-x-2">
@@ -71,17 +72,13 @@
 
                 <!-- Navigation Tabs -->
                 <div class="no-print flex items-center bg-slate-800 p-1.5 rounded-xl border border-slate-700">
-                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all">
                         <i class="fa-solid fa-chart-pie"></i>
                         <span>Dashboard</span>
                     </button>
-                    <button onclick="switchTab('entry')" id="tab-entry" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
+                    <button onclick="switchTab('entry')" id="tab-entry" class="tab-btn flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
                         <i class="fa-solid fa-pen-to-square"></i>
                         <span>Daily Entry Form</span>
-                    </button>
-                    <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all">
-                        <i class="fa-solid fa-gear"></i>
-                        <span>Google Sheet Link</span>
                     </button>
                 </div>
             </div>
@@ -293,32 +290,6 @@
             </form>
         </div>
 
-        <!-- SETTINGS & GOOGLE SHEETS API CONFIG -->
-        <div id="view-settings" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-                <div>
-                    <h2 class="text-xl font-extrabold text-slate-900 flex items-center space-x-2">
-                        <i class="fa-solid fa-link text-blue-600"></i>
-                        <span>Connected Google Apps Script Web App Link</span>
-                    </h2>
-                    <p class="text-sm text-slate-600 mt-1">
-                        तुमची Google Apps Script Web App URL यशस्वीपणे हार्डकोड/कनेक्ट केली आहे.
-                    </p>
-                </div>
-
-                <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Active Web App URL</label>
-                    <div class="flex gap-2">
-                        <input type="url" id="script-url-input" class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
-                        <button onclick="saveScriptUrl()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition shadow-md">
-                            Update Link
-                        </button>
-                    </div>
-                    <p class="text-xs text-emerald-600 font-semibold flex items-center mt-1"><i class="fa-solid fa-circle-check mr-1"></i> ही लिंक आधीच सिस्टीममध्ये समाविष्ट आहे.</p>
-                </div>
-            </div>
-        </div>
-
     </main>
 
     <!-- Footer -->
@@ -374,9 +345,6 @@
             document.getElementById('dash-date-picker').value = defaultDate;
             document.getElementById('entry-date').value = defaultDate;
 
-            const savedUrl = localStorage.getItem('google_script_url') || DEFAULT_SCRIPT_URL;
-            document.getElementById('script-url-input').value = savedUrl;
-
             if (!localStorage.getItem('fleet_data_' + defaultDate)) {
                 localStorage.setItem('fleet_data_' + defaultDate, JSON.stringify(SAMPLE_IMAGE_DATA));
             }
@@ -391,7 +359,6 @@
 
             document.getElementById('view-dashboard').classList.add('hidden');
             document.getElementById('view-entry').classList.add('hidden');
-            document.getElementById('view-settings').classList.add('hidden');
 
             document.getElementById('view-' + tabName).classList.remove('hidden');
 
@@ -473,19 +440,26 @@
 
             const payload = { date, generalNotes, vehicles };
 
+            // LocalStorage मध्ये प्राथमिक सेव्ह
             localStorage.setItem('fleet_data_' + date, JSON.stringify(payload));
 
-            const scriptUrl = localStorage.getItem('google_script_url') || DEFAULT_SCRIPT_URL;
-            if (scriptUrl) {
+            // Google Sheet मध्ये पाठवण्यासाठी robust POST / textPayload मेथड
+            if (DEFAULT_SCRIPT_URL) {
                 try {
-                    await fetch(scriptUrl, {
+                    // Google Apps Script वर CORS issues टाळण्यासाठी URL-encoded payload पाठवणे
+                    const formData = new URLSearchParams();
+                    formData.append('payload', JSON.stringify(payload));
+
+                    await fetch(DEFAULT_SCRIPT_URL, {
                         method: 'POST',
                         mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
                     });
+
                     alert("✅ Google Sheet मध्ये Entry सेव्ह झाली!");
                 } catch (err) {
+                    console.error("Fetch error:", err);
                     alert("⚠️ Local Storage मध्ये सेव्ह झाले, पण Google Sheet Sync अयशस्वी झाले.");
                 }
             } else {
@@ -499,32 +473,23 @@
             switchTab('dashboard');
         }
 
-        function saveScriptUrl() {
-            const url = document.getElementById('script-url-input').value.trim();
-            if (url) {
-                localStorage.setItem('google_script_url', url);
-                alert("✅ Google Script URL सेव्ह झाली!");
-            }
-        }
-
         async function loadDashboardData() {
             const selectedDate = document.getElementById('dash-date-picker').value;
             document.getElementById('dashboard-date-heading').innerText = `Summary as on date: ${formatDisplayDate(selectedDate)}`;
 
             let data = null;
-            const scriptUrl = localStorage.getItem('google_script_url') || DEFAULT_SCRIPT_URL;
 
-            if (scriptUrl) {
+            if (DEFAULT_SCRIPT_URL) {
                 document.getElementById('sync-text').innerText = "Syncing...";
                 try {
-                    const res = await fetch(`${scriptUrl}?date=${selectedDate}`);
+                    const res = await fetch(`${DEFAULT_SCRIPT_URL}?date=${selectedDate}`);
                     const json = await res.json();
-                    if (json.status === 'success') {
+                    if (json && json.status === 'success') {
                         data = json.data;
                         document.getElementById('sync-text').innerText = "Live Synced";
                     }
                 } catch (e) {
-                    console.warn("Falling back to LocalStorage.");
+                    console.warn("Falling back to LocalStorage.", e);
                 }
             }
 
