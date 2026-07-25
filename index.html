@@ -48,6 +48,9 @@
 </head>
 <body class="text-slate-800 min-h-screen flex flex-col">
 
+    <!-- Hidden Iframe to handle Google Apps Script POST form submission without page reload / CORS block -->
+    <iframe name="hidden_gscript_iframe" id="hidden_gscript_iframe" style="display:none;" onload="if(window.isSubmittingForm){ handleFormSuccess(); }"></iframe>
+
     <!-- Header Banner -->
     <header class="bg-slate-900 text-white shadow-xl border-b-4 border-amber-500 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -232,8 +235,12 @@
 
         <!-- DAILY ENTRY FORM VIEW -->
         <div id="view-entry" class="hidden space-y-6">
-            <form id="entry-form" onsubmit="handleFormSubmit(event)" class="space-y-6">
+            <!-- Native Form submit targeting hidden iframe to completely bypass browser CORS block -->
+            <form id="entry-form" action="https://script.google.com/macros/s/AKfycbyB2nC-PhSorlK_72Ozwzw1Xapqi0ukt5OXPj1KB4IgBydotc6UBXi2-5YPK8lAVjqOtA/exec" method="POST" target="hidden_gscript_iframe" onsubmit="prepareAndSubmitForm(event)" class="space-y-6">
                 
+                <!-- Hidden input field to hold full payload string -->
+                <input type="hidden" name="payload" id="hidden-form-payload">
+
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 class="text-lg font-extrabold text-slate-900">Daily Fleet Data Entry Form</h2>
@@ -299,10 +306,8 @@
 
     <!-- JavaScript Application Logic -->
     <script>
-        // HARDCODED GOOGLE APPS SCRIPT WEB APP URL
-        const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxvcboSPs3a-9dwQiKlPrKvAhVTFGCJ_0WB0em5SNyetUZHx-kf8O0HoV3JfSRaHmazJQ/exec";
+        const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyr83v7QKk3-Ua0P-h0hJ_llp9a_ISVRjKlPt7GOrZ8M3Q2kSd6PZKyOPi4kiJcm0JHXA/exec";
 
-        // MASTER FIXED VEHICLE MASTER LIST & FIXED TOTAL CAPACITY
         const FIXED_FLEET_MASTER = [
             { type: "PC Tipper", total: 166 },
             { type: "HOOK Loaders", total: 31 },
@@ -317,12 +322,14 @@
             { type: "Bin Washing Vehicle", total: 2 }
         ];
 
-        const FIXED_GRAND_TOTAL_VEHICLES = FIXED_FLEET_MASTER.reduce((acc, curr) => acc + curr.total, 0); // 287
+        const FIXED_GRAND_TOTAL_VEHICLES = FIXED_FLEET_MASTER.reduce((acc, curr) => acc + curr.total, 0);
 
-        // Sample Default Data from image for 2026-07-21
         const SAMPLE_IMAGE_DATA = {
             date: "2026-07-21",
-            generalNotes: "* Vehicle Sent to Dealer: GA0040, GA2017, GA0038\n* Note: 11 HOOK Loader's Suspension work Pending (GA-6246, 6210, 6212, 6221, 6218, 6216, 6208, 6206, 6202, 6198, 6204)\n* V0344 - this vehicle sent to Pune\n* Rented Vehicle Breakdown: FU9411",
+            generalNotes: "* Vehicle Sent to Dealer: GA0040, GA2017, GA0038
+* Note: 11 HOOK Loader's Suspension work Pending (GA-6246, 6210, 6212, 6221, 6218, 6216, 6208, 6206, 6202, 6198, 6204)
+* V0344 - this vehicle sent to Pune
+* Rented Vehicle Breakdown: FU9411",
             vehicles: [
                 { type: "PC Tipper", total: 166, repair: 14, reg: 0, ready: 152, remarks: "GA0040, GA2017, GA0038 sent to dealer" },
                 { type: "HOOK Loaders", total: 31, repair: 2, reg: 0, ready: 29, remarks: "11 Hook Loaders suspension work pending" },
@@ -339,6 +346,8 @@
         };
 
         let chartInstance = null;
+        window.isSubmittingForm = false;
+        window.submittedDate = "";
 
         document.addEventListener('DOMContentLoaded', () => {
             const defaultDate = "2026-07-21";
@@ -411,8 +420,7 @@
             });
         }
 
-        async function handleFormSubmit(e) {
-            e.preventDefault();
+        function prepareAndSubmitForm(e) {
             const submitBtn = document.getElementById('submit-btn');
             const submitBtnText = document.getElementById('submit-btn-text');
 
@@ -440,36 +448,31 @@
 
             const payload = { date, generalNotes, vehicles };
 
-            // LocalStorage मध्ये प्राथमिक सेव्ह
+            // Save to LocalStorage immediately
             localStorage.setItem('fleet_data_' + date, JSON.stringify(payload));
+            
+            // Set payload to hidden form input for POST submission to Iframe
+            document.getElementById('hidden-form-payload').value = JSON.stringify(payload);
 
-            // Google Sheet मध्ये पाठवण्यासाठी robust POST / textPayload मेथड
-            if (DEFAULT_SCRIPT_URL) {
-                try {
-                    // Google Apps Script वर CORS issues टाळण्यासाठी URL-encoded payload पाठवणे
-                    const formData = new URLSearchParams();
-                    formData.append('payload', JSON.stringify(payload));
+            window.isSubmittingForm = true;
+            window.submittedDate = date;
+        }
 
-                    await fetch(DEFAULT_SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: formData.toString()
-                    });
+        function handleFormSuccess() {
+            if (!window.isSubmittingForm) return;
+            window.isSubmittingForm = false;
 
-                    alert("✅ Google Sheet मध्ये Entry सेव्ह झाली!");
-                } catch (err) {
-                    console.error("Fetch error:", err);
-                    alert("⚠️ Local Storage मध्ये सेव्ह झाले, पण Google Sheet Sync अयशस्वी झाले.");
-                }
-            } else {
-                alert("✅ डेटा Local Storage मध्ये सेव्ह झाला!");
-            }
+            const submitBtn = document.getElementById('submit-btn');
+            const submitBtnText = document.getElementById('submit-btn-text');
 
             submitBtn.disabled = false;
             submitBtnText.innerText = "Google Sheet मध्ये Entry सेव्ह करा";
 
-            document.getElementById('dash-date-picker').value = date;
+            alert("✅ Google Sheet मध्ये Entry यशस्वीरित्या सेव्ह झाली!");
+
+            if (window.submittedDate) {
+                document.getElementById('dash-date-picker').value = window.submittedDate;
+            }
             switchTab('dashboard');
         }
 
